@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: turnito
+      POSTGRES_PASSWORD: turnito
+      POSTGRES_DB: turnito
+      TZ: America/Argentina/Buenos_Aires
+      PGTZ: America/Argentina/Buenos_Aires
+    ports:
+      # 5434 afuera para no chocar con otro PostgreSQL ya instalado
+      # en la maquina. Adentro de Docker sigue siendo el 5432.
+      - "5434:5432"
+    volumes:
+      - turnito-db:/var/lib/postgresql/data
+      # Postgres ejecuta estos archivos en orden, pero SOLO la primera
+      # vez que se crea el volumen.
+      - ./db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U turnito -d turnito"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: ./web
+    ports:
+      - "5173:5173"
+    volumes:
+      # Monta el codigo para que los cambios se vean sin reconstruir la imagen.
+      - ./web:/app
+      # Volumen anonimo: evita que la carpeta local (sin node_modules)
+      # pise los node_modules que se instalaron dentro del contenedor.
+      - /app/node_modules
+
+volumes:
+  turnito-db:
