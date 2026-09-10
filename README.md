@@ -62,17 +62,20 @@ Si al levantar aparece port is already allocated, hay otro programa usando ese p
 
 
 TPMetodologiaYSistemas2/
-├── docker-compose.yml      - Levanta la base y el frontend con un comando
+├── docker-compose.yml        ── Levanta la base y el frontend con un comando
+│
 ├── db/
-│   ├── 01-schema.sql       - Las 6 tablas, restricciones y triggers
-│   └── 02-seed.sql         - Datos de ejemplo (2 complejos, 6 canchas, 4 usuarios)
-├── web/                    - React + Vite + Chakra, pantalla inicial
+│   ├── 01-schema.sql         ── Las 6 tablas, restricciones y triggers
+│   └── 02-seed.sql           ── Datos de ejemplo (2 complejos, 6 canchas, 4 usuarios)
+│
+├── web/                      ── React + Vite + Chakra, pantalla inicial
 │   ├── Dockerfile
 │   ├── vite.config.js
 │   └── src/
 │       ├── main.jsx
 │       └── App.jsx
-└── api/                     Todavía no existe
+│
+└── api/                      ── Todavía no existe
 
 
 ### Usuarios de ejemplo
