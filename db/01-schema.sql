@@ -35,10 +35,6 @@ CREATE TABLE complejo_deportivo (
 -- La contrasenia se guarda hasheada con bcrypt, nunca en texto
 -- plano; por eso la columna se llama password_hash.
 --
--- complejo_id NO esta en el documento original: se agrego para
--- saber de que complejo es administrador un usuario con rol
--- 'administrador'. Sin esto, cualquier admin podria editar las
--- canchas de cualquier complejo. Para los jugadores queda NULL.
 -- ============================================================
 CREATE TABLE usuario (
   id             SERIAL PRIMARY KEY,
@@ -82,13 +78,6 @@ CREATE INDEX idx_cancha_complejo ON cancha (complejo_id);
 -- atributos del documento existen como COLUMNAS GENERADAS: se
 -- calculan solas y no pueden quedar desincronizadas.
 --
--- precio_total es una copia congelada del precio al momento de
--- reservar: si el complejo cambia la tarifa, las reservas ya
--- hechas conservan el precio que se cobro.
---
--- reserva_sin_solape es la restriccion central del sistema:
--- impide fisicamente que dos reservas se pisen sobre la misma
--- cancha, sin importar cuantos pedidos lleguen a la vez.
 -- ============================================================
 CREATE TABLE reserva (
   id           SERIAL PRIMARY KEY,
@@ -128,13 +117,6 @@ CREATE INDEX idx_reserva_usuario       ON reserva (usuario_id);
 -- Todo partido nace de una reserva, por eso reserva_id es
 -- NOT NULL UNIQUE (una reserva genera como maximo un partido).
 --
--- deporte, fecha y hora son datos que ya viven en la reserva y la
--- cancha. Se guardan igual porque el documento los pide, pero los
--- completa un trigger al insertar, para que nunca contradigan a
--- la reserva de la que salen.
---
--- jugadores_actuales tambien lo mantiene un trigger, contando la
--- tabla participante_partido.
 -- ============================================================
 CREATE TABLE partido (
   id                   SERIAL PRIMARY KEY,
