@@ -214,3 +214,31 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_participante_cambio
 AFTER INSERT OR DELETE ON participante_partido
 FOR EACH ROW EXECUTE FUNCTION actualizar_jugadores_partido();
+
+-- Antes de anotar a alguien, bloquea la fila del partido. Si dos
+-- personas se suman a la vez, la segunda espera a que termine la
+-- primera, y recien ahi ve si queda lugar. Sin este bloqueo el
+-- contador quedaba mal (5 anotados, jugadores_actuales = 4) y se
+-- podia pasar del cupo.
+CREATE OR REPLACE FUNCTION participante_verificar_cupo()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_estado TEXT;
+BEGIN
+  SELECT estado INTO v_estado
+    FROM partido
+   WHERE id = NEW.partido_id
+     FOR UPDATE;
+
+  IF v_estado <> 'abierto' THEN
+    RAISE EXCEPTION 'El partido ya no tiene lugar'
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_participante_cupo
+BEFORE INSERT ON participante_partido
+FOR EACH ROW EXECUTE FUNCTION participante_verificar_cupo();
