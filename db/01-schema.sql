@@ -153,6 +153,21 @@ CREATE INDEX idx_participante_partido ON participante_partido (partido_id);
 -- TRIGGERS
 -- ============================================================
 
+-- Si se cancela una reserva, se cancela el partido que salio de ella.
+CREATE OR REPLACE FUNCTION reserva_cancelar_partido()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE partido SET estado = 'cancelado' WHERE reserva_id = NEW.id;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_reserva_cancelada
+AFTER UPDATE OF estado ON reserva
+FOR EACH ROW
+WHEN (NEW.estado = 'cancelada' AND OLD.estado <> 'cancelada')
+EXECUTE FUNCTION reserva_cancelar_partido();
+
 -- Completa deporte, fecha y hora del partido a partir de su reserva.
 CREATE OR REPLACE FUNCTION partido_datos_desde_reserva()
 RETURNS TRIGGER AS $$
