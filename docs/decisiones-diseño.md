@@ -19,6 +19,8 @@ Todo el caso está en [`db/01-schema.sql`](../db/01-schema.sql). Es el único c�
 
 Las reglas 1 a 5 las cuida la base. La 6 y la 7 no las cuida nadie: el plan era que la API controlara el cupo, pero la API todavía no existe.
 
+Después de los cambios (commit `95159b4`), las dos quedan en la base: la regla 7 en [`trg_reserva_cancelada`](https://github.com/FedericoMarcenac/TPMetodologiaYSistemaII/blob/95159b476c679bdabe7113181d018b1012105dcb/db/01-schema.sql#L156-L169) y la 6 en [`trg_participante_cupo`](https://github.com/FedericoMarcenac/TPMetodologiaYSistemaII/blob/95159b476c679bdabe7113181d018b1012105dcb/db/01-schema.sql#L233-L259), que además corrige la 5.
+
 ## 2. Diagnóstico
 
 ### 2.1 Reservas
