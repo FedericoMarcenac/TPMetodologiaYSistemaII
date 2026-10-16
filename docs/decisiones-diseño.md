@@ -105,7 +105,11 @@ Prueba de la cancelación:
     UPDATE reserva SET estado = 'cancelada' WHERE id = 4;
     SELECT id, estado FROM partido WHERE id = 2;
 
-Sin el trigger, nada cambia el estado del partido cuando se cancela la reserva, así que el partido sigue abierto.
+Sin el trigger (lo sacamos de la base con `DROP TRIGGER trg_reserva_cancelada ON reserva;`):
+
+     id | estado
+    ----+---------
+      2 | abierto
 
 Con el trigger:
 
