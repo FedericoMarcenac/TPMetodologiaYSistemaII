@@ -102,7 +102,7 @@ Implementa las 6 entidades del documento del proyecto: `complejo_deportivo`, `us
 - **`reserva` guarda un rango `inicio`–`fin` de tipo `TIMESTAMPTZ`** en lugar de tres columnas sueltas. Los atributos `fecha`, `hora_inicio` y `hora_fin` del documento existen igual, pero como **columnas generadas**: se calculan solas y no pueden quedar desincronizadas.
 - **`precio_total` queda congelado en la reserva.** Si el complejo cambia la tarifa, las reservas ya hechas conservan el precio que se cobró.
 - **`usuario.complejo_id`** se agregó al modelo original para saber de qué complejo es administrador un usuario. Sin eso, cualquier admin podría editar las canchas de cualquier complejo.
-- **Tres triggers** mantienen sincronizados los datos derivados: uno completa `deporte`, `fecha` y `hora` del partido desde su reserva; otro anota al creador como primer participante; y el tercero recalcula `jugadores_actuales` y el estado cada vez que alguien se suma o se baja.
+- **Cinco triggers** cuidan los datos derivados y las reglas de los partidos: uno completa `deporte`, `fecha` y `hora` del partido desde su reserva; otro anota al creador como primer participante; el tercero recalcula `jugadores_actuales` y el estado cada vez que alguien se suma o se baja; el cuarto cancela el partido cuando se cancela su reserva; y el quinto bloquea el partido antes de anotar a alguien, para que no se pase del cupo.
 
 ### Reservas sin superposición
 
