@@ -68,7 +68,8 @@ TPMetodologiaYSistemaII/
 │   └── 02-seed.sql ── Datos de ejemplo (2 complejos, 6 canchas, 4 usuarios)
 │
 ├── docs/
-│   └── decisiones-diseño.md ── Análisis de diseño del Taller II
+│   ├── decisiones-diseño.md ── Análisis de diseño del Taller II (reglas en la base)
+│   └── arquitectura.md ── Capas, patrones de diseño y diagramas de la API y el front
 │
 ├── web/ ── React + Vite + Chakra
 │   ├── Dockerfile
@@ -110,6 +111,8 @@ Todos con la contraseña `turnito123`:
 ## API
 
 Todas las rutas empiezan con `/api` y responden JSON. Los errores vuelven siempre como `{ "error": "mensaje" }`.
+
+> Los patrones de diseño (Repository, Service Layer, Chain of Responsibility, Singleton, Facade, Observer y Proxy de protección), con su porqué y los diagramas, están en [`docs/arquitectura.md`](docs/arquitectura.md).
 
 ### Capas
 
