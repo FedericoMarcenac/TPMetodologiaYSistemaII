@@ -29,6 +29,8 @@ services:
     environment:
       # "db" y no "localhost": la API le habla a la base dentro de la red de Docker.
       DATABASE_URL: postgres://turnito:turnito@db:5432/turnito
+      # Valor de desarrollo, como las credenciales de la base. En produccion iria uno secreto.
+      JWT_SECRET: turnito-desarrollo
       TZ: America/Argentina/Buenos_Aires
     volumes:
       - ./api:/app
