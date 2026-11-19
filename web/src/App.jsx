@@ -13,6 +13,7 @@ import Partidos from './paginas/Partidos.jsx';
 import Partido from './paginas/Partido.jsx';
 import PublicarPartido from './paginas/PublicarPartido.jsx';
 import NoEncontrada from './paginas/NoEncontrada.jsx';
+import Componentes from './paginas/Componentes.jsx';
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="admin" element={<Administracion />} />
         </Route>
 
+        <Route path="componentes" element={<Componentes />} />
         <Route path="*" element={<NoEncontrada />} />
       </Route>
     </Routes>
