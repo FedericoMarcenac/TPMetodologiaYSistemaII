@@ -1,10 +1,11 @@
-import { Heading, Stack, Text } from '@chakra-ui/react';
+import { Construction } from 'lucide-react';
+import { Encabezado, ListaVacia } from './estados.jsx';
 
 export default function Pendiente({ titulo, ticket }) {
   return (
-    <Stack gap="2" py="10">
-      <Heading size="2xl">{titulo}</Heading>
-      <Text color="fg.muted">Pantalla en construcción · ticket {ticket}</Text>
-    </Stack>
+    <>
+      <Encabezado titulo={titulo} />
+      <ListaVacia icono={Construction} titulo="Pantalla en construcción" descripcion={`La está armando el ticket ${ticket}.`} />
+    </>
   );
 }
