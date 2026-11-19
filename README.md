@@ -16,7 +16,7 @@ Plataforma web para **reservar canchas deportivas y organizar partidos entre jug
 | Frontend | React + Vite + Chakra UI v3 |
 | Backend | Node.js + Express 5 + `pg` (sin ORM) |
 | Base de datos | PostgreSQL 16 |
-| Autenticación | JWT + bcrypt (pendiente) |
+| Autenticación | JWT + bcryptjs |
 | Contenedores | Docker / Docker Compose |
 
 ## Cómo levantarlo
@@ -84,10 +84,11 @@ TPMetodologiaYSistemaII/
     │   ├── app.js ── Arma la cadena de middlewares y rutas
     │   ├── db.js ── Pool de conexiones a PostgreSQL (uno solo)
     │   ├── errores.js ── HttpError y traducción de errores de la base
-    │   ├── middlewares/ ── Manejo central de errores
+    │   ├── validar.js ── Chequeo de datos obligatorios
+    │   ├── middlewares/ ── Sesión, rol y manejo central de errores
     │   ├── routes/ ── Reciben el pedido y responden JSON
-    │   ├── services/ ── Reglas de negocio (llegan con los primeros endpoints)
-    │   └── repositories/ ── Todo el SQL (llegan con los primeros endpoints)
+    │   ├── services/ ── Reglas de negocio
+    │   └── repositories/ ── Todo el SQL
     └── test/
 ```
 
@@ -150,6 +151,25 @@ app.use('/api/canchas', canchas);
 ```
 
 No hace falta `try/catch` en las rutas: Express 5 manda cualquier error al manejador central (`src/middlewares/errores.js`).
+
+### Autenticación
+
+| Método | Ruta | Acceso | Qué hace |
+|---|---|---|---|
+| `POST` | `/api/auth/registrar` | libre | Body `{ nombre, apellido, email, password, telefono? }`. Crea siempre un jugador y devuelve `{ token, usuario }` |
+| `POST` | `/api/auth/login` | libre | Body `{ email, password }`. Devuelve `{ token, usuario }` |
+| `GET` | `/api/auth/yo` | sesión | El usuario logueado |
+
+El token se manda en cada pedido como `Authorization: Bearer <token>` y dura 7 días. Para proteger una ruta:
+
+```js
+import { requireAuth, requireRol } from '../middlewares/auth.js';
+
+router.post('/', requireAuth, async (req, res) => { /* req.usuario = { id, rol, complejo_id } */ });
+router.put('/:id', requireAuth, requireRol('administrador'), async (req, res) => { /* ... */ });
+```
+
+Cada middleware puede cortar el pedido (401 sin sesión, 403 sin el rol) antes de que llegue a la ruta.
 
 ### Errores
 
@@ -217,7 +237,7 @@ Comportamiento verificado:
 ## Próximos pasos
 
 - [x] **API**: proyecto Express con conexión a la base y manejo de errores
-- [ ] **Autenticación**: registro, login con JWT y middleware de sesión
+- [x] **Autenticación**: registro, login con JWT y middleware de sesión
 - [ ] **Reservas**: grilla de disponibilidad por día y alta de reservas
 - [ ] **Partidos**: listado de partidos abiertos y sumarse a uno
 - [ ] **Panel de administración**: gestión de las canchas del complejo propio
