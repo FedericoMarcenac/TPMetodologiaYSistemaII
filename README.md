@@ -61,7 +61,7 @@ Si al levantar aparece `port is already allocated`, hay otro programa usando ese
 
 ```text
 TPMetodologiaYSistemaII/
-├── docker-compose.yml ── Levanta la base y el frontend con un comando
+├── docker-compose.yml ── Levanta la base, la API y el frontend con un comando
 │
 ├── db/
 │   ├── 01-schema.sql ── Las 6 tablas, restricciones y triggers
@@ -70,12 +70,16 @@ TPMetodologiaYSistemaII/
 ├── docs/
 │   └── decisiones-diseño.md ── Análisis de diseño del Taller II
 │
-├── web/ ── React + Vite + Chakra, pantalla inicial
+├── web/ ── React + Vite + Chakra
 │   ├── Dockerfile
-│   ├── vite.config.js
+│   ├── vite.config.js ── Proxy de /api hacia la API
 │   └── src/
 │       ├── main.jsx
-│       └── App.jsx
+│       ├── App.jsx ── Todas las rutas de la aplicación
+│       ├── api.js ── Cliente de la API (manda el token)
+│       ├── sesion.jsx ── Usuario logueado: useSesion()
+│       ├── componentes/ ── Layout, RutaProtegida, Pendiente
+│       └── paginas/ ── Una pantalla por archivo
 │
 └── api/ ── API REST con Express
     ├── Dockerfile
@@ -206,6 +210,45 @@ docker compose exec api npm test
 ```
 
 Corren contra la base de Docker. Las pruebas que escriben en la base lo hacen dentro de una transacción que se deshace al final, así que no ensucian los datos de ejemplo.
+
+## Frontend
+
+Las pantallas viven en `web/src/paginas/`, una por archivo, y ya están todas creadas y conectadas en `App.jsx`. Las que todavía no se hicieron muestran "Pantalla en construcción" con el número de ticket: cada uno edita solo el archivo de su pantalla.
+
+| Ruta | Archivo | Acceso |
+|---|---|---|
+| `/` | `Inicio.jsx` | libre |
+| `/login`, `/registro` | `Login.jsx`, `Registro.jsx` | libre |
+| `/canchas`, `/canchas/:id` | `Canchas.jsx`, `Cancha.jsx` | libre |
+| `/partidos`, `/partidos/:id` | `Partidos.jsx`, `Partido.jsx` | libre |
+| `/mis-reservas`, `/partidos/nuevo`, `/perfil` | `MisReservas.jsx`, `PublicarPartido.jsx`, `Perfil.jsx` | sesión |
+| `/admin` | `Administracion.jsx` | administrador |
+
+Sin sesión, las rutas protegidas mandan al login; un jugador que entra a `/admin` vuelve al inicio.
+
+### Llamar a la API
+
+```jsx
+import { api, ErrorApi } from '../api.js';
+import { useSesion } from '../sesion.jsx';
+
+const canchas = await api.get('/canchas?deporte=futbol');
+await api.post('/reservas', { cancha_id: 1, fecha: '2026-11-25', hora: '19:00' });
+
+try {
+  await api.post(`/partidos/${id}/participantes`);
+} catch (e) {
+  if (e instanceof ErrorApi && e.status === 409) {
+    // e.message trae el texto de la API, por ejemplo "El partido ya no tiene lugar"
+  }
+}
+
+const { usuario, entrar, salir } = useSesion();   // usuario es null si no hay sesión
+```
+
+`api.js` agrega el token solo y, si la API responde 401 porque la sesión venció, la cierra. Las rutas van sin `/api` adelante: Vite reenvía `/api` a la API, así que no hay problemas de CORS.
+
+> Si alguien agrega una librería al front o a la API, los demás tienen que levantar con `docker compose up --build -V`. El `-V` reinstala `node_modules` dentro del contenedor; sin él queda la versión vieja y aparece `Failed to resolve import`.
 
 ## Base de datos
 
