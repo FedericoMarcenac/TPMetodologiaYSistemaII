@@ -171,6 +171,18 @@ router.put('/:id', requireAuth, requireRol('administrador'), async (req, res) =>
 
 Cada middleware puede cortar el pedido (401 sin sesión, 403 sin el rol) antes de que llegue a la ruta.
 
+### Administración
+
+Todas piden sesión de **administrador**. El complejo sale del token, nunca del pedido: cada administrador ve y edita solo el suyo.
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `GET` | `/api/admin/complejo` | Datos del complejo propio |
+| `GET` | `/api/admin/canchas` | Canchas del complejo |
+| `POST` | `/api/admin/canchas` | Body `{ nombre, deporte, capacidad, precio_por_hora, estado? }`. `estado` arranca en `disponible` |
+| `PUT` | `/api/admin/canchas/:id` | Mismo body. 403 si la cancha es de otro complejo |
+| `GET` | `/api/admin/reservas?fecha=AAAA-MM-DD` | Reservas del día (hoy si no se manda fecha), con quién reservó y si tienen partido |
+
 ### Errores
 
 El manejador central traduce los errores de la base que son reglas de negocio:
@@ -240,7 +252,7 @@ Comportamiento verificado:
 - [x] **Autenticación**: registro, login con JWT y middleware de sesión
 - [ ] **Reservas**: grilla de disponibilidad por día y alta de reservas
 - [ ] **Partidos**: listado de partidos abiertos y sumarse a uno
-- [ ] **Panel de administración**: gestión de las canchas del complejo propio
+- [ ] **Panel de administración**: gestión de las canchas del complejo propio (la API ya está; falta la pantalla)
 
 ## Notas
 
