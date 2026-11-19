@@ -22,6 +22,21 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    build: ./api
+    ports:
+      - "3000:3000"
+    environment:
+      # "db" y no "localhost": la API le habla a la base dentro de la red de Docker.
+      DATABASE_URL: postgres://turnito:turnito@db:5432/turnito
+      TZ: America/Argentina/Buenos_Aires
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+
   web:
     build: ./web
     ports:

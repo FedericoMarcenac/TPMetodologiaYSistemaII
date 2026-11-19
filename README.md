@@ -7,14 +7,14 @@
 
 Plataforma web para **reservar canchas deportivas y organizar partidos entre jugadores**. Permite gestionar complejos deportivos, canchas de fútbol, básquet y pádel, y reservas por turno. Además, cualquier reserva puede publicarse como **partido abierto** para que otros usuarios se sumen y completen los equipos.
 
-> **Estado:** en desarrollo. Hoy están funcionando el entorno con Docker, la base de datos completa y la pantalla inicial del frontend. La API todavía no existe.
+> **Estado:** en desarrollo. Hoy están funcionando el entorno con Docker, la base de datos completa, la base de la API y la pantalla inicial del frontend.
 
 ## Stack tecnológico
 
 | Capa | Tecnología |
 |---|---|
 | Frontend | React + Vite + Chakra UI v3 |
-| Backend | Node.js + Express (pendiente) |
+| Backend | Node.js + Express 5 + `pg` (sin ORM) |
 | Base de datos | PostgreSQL 16 |
 | Autenticación | JWT + bcrypt (pendiente) |
 | Contenedores | Docker / Docker Compose |
@@ -34,6 +34,7 @@ Y abrir **http://localhost:5173**.
 | Servicio | Puerto | Descripción |
 |---|---|---|
 | `web` | 5173 | Frontend React (Vite) |
+| `api` | 3000 | API REST (Express). `GET /api/salud` confirma que está conectada a la base |
 | `db` | 5434 | PostgreSQL, con el esquema y los datos de ejemplo ya cargados |
 
 ### Otros comandos
@@ -76,7 +77,18 @@ TPMetodologiaYSistemaII/
 │       ├── main.jsx
 │       └── App.jsx
 │
-└── api/ ── Todavía no existe
+└── api/ ── API REST con Express
+    ├── Dockerfile
+    ├── src/
+    │   ├── index.js ── Levanta el servidor
+    │   ├── app.js ── Arma la cadena de middlewares y rutas
+    │   ├── db.js ── Pool de conexiones a PostgreSQL (uno solo)
+    │   ├── errores.js ── HttpError y traducción de errores de la base
+    │   ├── middlewares/ ── Manejo central de errores
+    │   ├── routes/ ── Reciben el pedido y responden JSON
+    │   ├── services/ ── Reglas de negocio (llegan con los primeros endpoints)
+    │   └── repositories/ ── Todo el SQL (llegan con los primeros endpoints)
+    └── test/
 ```
 
 ### Usuarios de ejemplo
@@ -89,6 +101,79 @@ Todos con la contraseña `turnito123`:
 | `jugador@turnito.com` | jugador |
 | `fede@turnito.com` | jugador |
 | `lucia@turnito.com` | jugador |
+
+## API
+
+Todas las rutas empiezan con `/api` y responden JSON. Los errores vuelven siempre como `{ "error": "mensaje" }`.
+
+### Capas
+
+Cada pedido recorre tres capas, y cada una tiene una sola tarea:
+
+| Capa | Carpeta | Qué hace |
+|---|---|---|
+| Rutas | `src/routes/` | Leen el pedido (`req.params`, `req.body`) y responden JSON. No tienen SQL ni reglas |
+| Servicios | `src/services/` | Las reglas de negocio: validar, calcular, decidir quién puede hacer qué |
+| Repositorios | `src/repositories/` | Todo el SQL, siempre con parámetros `$1`, `$2` |
+
+Para agregar un endpoint, por ejemplo las canchas:
+
+```js
+// src/repositories/canchaRepository.js
+import { pool } from '../db.js';
+
+export async function buscarPorId(id) {
+  const { rows } = await pool.query('SELECT * FROM cancha WHERE id = $1', [id]);
+  return rows[0];
+}
+
+// src/services/canchaService.js
+import { HttpError } from '../errores.js';
+import * as canchaRepository from '../repositories/canchaRepository.js';
+
+export async function obtener(id) {
+  const cancha = await canchaRepository.buscarPorId(id);
+  if (!cancha) throw new HttpError(404, 'No existe esa cancha');
+  return cancha;
+}
+
+// src/routes/canchas.js
+import { Router } from 'express';
+import * as canchaService from '../services/canchaService.js';
+
+const router = Router();
+router.get('/:id', async (req, res) => res.json(await canchaService.obtener(req.params.id)));
+export default router;
+
+// src/app.js
+app.use('/api/canchas', canchas);
+```
+
+No hace falta `try/catch` en las rutas: Express 5 manda cualquier error al manejador central (`src/middlewares/errores.js`).
+
+### Errores
+
+El manejador central traduce los errores de la base que son reglas de negocio:
+
+| Código de PostgreSQL | Cuándo pasa | Respuesta |
+|---|---|---|
+| `23P01` | Dos reservas de la misma cancha se superponen | 409 |
+| `23505` | Email repetido, reserva que ya tiene partido, alguien que se suma dos veces | 409 |
+| `23514` sin restricción | El trigger de cupo: el partido ya no tiene lugar | 409 |
+| `23514` con restricción | Un `CHECK` de una tabla (por ejemplo, capacidad 0) | 400 |
+| `23503` | Referencia a algo que no existe | 400 |
+
+Para cortar un pedido desde un servicio: `throw new HttpError(404, 'mensaje')`. Cualquier otro error devuelve 500.
+
+`db.js` ya convierte los `NUMERIC` (precios) a número y deja las fechas `DATE` como texto `YYYY-MM-DD`.
+
+### Tests
+
+```bash
+docker compose exec api npm test
+```
+
+Corren contra la base de Docker. Las pruebas que escriben en la base lo hacen dentro de una transacción que se deshace al final, así que no ensucian los datos de ejemplo.
 
 ## Base de datos
 
@@ -131,7 +216,7 @@ Comportamiento verificado:
 
 ## Próximos pasos
 
-- [ ] **API**: proyecto Express con conexión a la base y `GET /api/canchas`
+- [x] **API**: proyecto Express con conexión a la base y manejo de errores
 - [ ] **Autenticación**: registro, login con JWT y middleware de sesión
 - [ ] **Reservas**: grilla de disponibilidad por día y alta de reservas
 - [ ] **Partidos**: listado de partidos abiertos y sumarse a uno
