@@ -43,6 +43,10 @@ services:
     build: ./web
     ports:
       - "5173:5173"
+    environment:
+      API_URL: http://api:3000
+    depends_on:
+      - api
     volumes:
       # Monta el codigo para que los cambios se vean sin reconstruir la imagen.
       - ./web:/app

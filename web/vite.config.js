@@ -14,5 +14,10 @@ export default defineConfig({
       // cruzan bien el bind mount, asi que Vite pregunta cada tanto.
       usePolling: true,
     },
+    // El front llama a /api y Vite lo reenvia a la API: mismo origen, sin CORS.
+    // Dentro de Docker la API es "api"; corriendo Vite a mano, localhost.
+    proxy: {
+      '/api': process.env.API_URL ?? 'http://localhost:3000',
+    },
   },
 });
