@@ -194,7 +194,7 @@ export default function Partido() {
         <Card.Root variant="outline">
           <Card.Body gap="5">
             <Stack gap="2">
-              <HStack gap="2"><CalendarDays size={18} aria-hidden="true" /><Text textTransform="capitalize">{fechaLarga(partido.fecha)}</Text></HStack>
+              <HStack gap="2"><CalendarDays size={18} aria-hidden="true" /><Text>{fechaLarga(partido.fecha)}</Text></HStack>
               <HStack gap="2"><Clock size={18} aria-hidden="true" /><Text>{partido.hora} h</Text></HStack>
               <HStack gap="2"><MapPin size={18} aria-hidden="true" /><Text>{partido.complejo}</Text></HStack>
             </Stack>
