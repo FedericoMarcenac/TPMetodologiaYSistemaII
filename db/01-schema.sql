@@ -126,7 +126,7 @@ CREATE TABLE partido (
   jugadores_necesarios INT NOT NULL CHECK (jugadores_necesarios > 0),
   jugadores_actuales   INT NOT NULL DEFAULT 0,
   estado               TEXT NOT NULL DEFAULT 'abierto'
-                       CHECK (estado IN ('abierto', 'completo', 'cancelado')),
+                       CHECK (estado IN ('abierto', 'cancelado')),
   creado_en            TIMESTAMPTZ NOT NULL DEFAULT now(),
 
   reserva_id           INT NOT NULL UNIQUE REFERENCES reserva(id) ON DELETE CASCADE,
@@ -201,8 +201,9 @@ AFTER INSERT ON partido
 FOR EACH ROW EXECUTE FUNCTION partido_sumar_creador();
 
 
--- Recalcula jugadores_actuales y el estado cada vez que alguien
--- se suma o se baja de un partido.
+-- Recalcula jugadores_actuales cada vez que alguien se suma o se baja
+-- de un partido. "Completo" no se guarda: se calcula comparando
+-- jugadores_actuales con jugadores_necesarios.
 CREATE OR REPLACE FUNCTION actualizar_jugadores_partido()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -214,12 +215,7 @@ BEGIN
    WHERE partido_id = v_partido_id;
 
   UPDATE partido
-     SET jugadores_actuales = v_total,
-         estado = CASE
-                    WHEN estado = 'cancelado'              THEN 'cancelado'
-                    WHEN v_total >= jugadores_necesarios   THEN 'completo'
-                    ELSE 'abierto'
-                  END
+     SET jugadores_actuales = v_total
    WHERE id = v_partido_id;
 
   RETURN NULL;
@@ -238,14 +234,15 @@ FOR EACH ROW EXECUTE FUNCTION actualizar_jugadores_partido();
 CREATE OR REPLACE FUNCTION participante_verificar_cupo()
 RETURNS TRIGGER AS $$
 DECLARE
-  v_estado TEXT;
+  v_partido partido%ROWTYPE;
 BEGIN
-  SELECT estado INTO v_estado
+  SELECT * INTO v_partido
     FROM partido
    WHERE id = NEW.partido_id
      FOR UPDATE;
 
-  IF v_estado <> 'abierto' THEN
+  IF v_partido.estado = 'cancelado'
+     OR v_partido.jugadores_actuales >= v_partido.jugadores_necesarios THEN
     RAISE EXCEPTION 'El partido ya no tiene lugar'
       USING ERRCODE = 'check_violation';
   END IF;
