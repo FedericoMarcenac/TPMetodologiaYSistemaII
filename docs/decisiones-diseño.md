@@ -13,7 +13,7 @@ Todo el caso está en [`db/01-schema.sql`](../db/01-schema.sql). Es el único c�
 | 2 | `fecha`, `hora_inicio` y `hora_fin` coinciden siempre con el rango de la reserva | Base: columnas generadas | [L87-L92](https://github.com/FedericoMarcenac/TPMetodologiaYSistemaII/blob/01995111f646b008257babe1252766a2d6a822b6/db/01-schema.sql#L87-L92) | Se cumple |
 | 3 | El partido copia deporte, fecha y hora de su reserva | Base: `trg_partido_datos` | [L156-L171](https://github.com/FedericoMarcenac/TPMetodologiaYSistemaII/blob/01995111f646b008257babe1252766a2d6a822b6/db/01-schema.sql#L156-L171) | Se cumple |
 | 4 | El creador queda anotado en su partido | Base: `trg_partido_creador` | [L174-L186](https://github.com/FedericoMarcenac/TPMetodologiaYSistemaII/blob/01995111f646b008257babe1252766a2d6a822b6/db/01-schema.sql#L174-L186) | Se cumple, pero el `RETURNING` del `INSERT` devuelve `jugadores_actuales = 0` |
-| 5 | `jugadores_actuales` cuenta a los anotados y el partido pasa a `completo` al llenarse | Base: `trg_participante_cambio` | [L189-L216](https://github.com/FedericoMarcenac/TPMetodologiaYSistemaII/blob/01995111f646b008257babe1252766a2d6a822b6/db/01-schema.sql#L189-L216) | Falla si dos personas se suman a la vez |
+| 5 | `jugadores_actuales` cuenta a los anotados. El partido está lleno cuando llega a `jugadores_necesarios` (se calcula, ver 4.1) | Base: `trg_participante_cambio` | [L189-L216](https://github.com/FedericoMarcenac/TPMetodologiaYSistemaII/blob/01995111f646b008257babe1252766a2d6a822b6/db/01-schema.sql#L189-L216) | Falla si dos personas se suman a la vez |
 | 6 | No se anota más gente que `jugadores_necesarios` | En ningún lado | — | No se controla |
 | 7 | Si se cancela la reserva, se cancela el partido | En ningún lado | — | No se controla |
 
@@ -60,7 +60,7 @@ a un evento sin que quien cancela lo sepa (Observer).
 
 ### 2.2 Partidos
 
-Cubre las reglas 3 a 6: el partido copia deporte, fecha y hora de su reserva, el creador queda anotado, se cuentan los jugadores y se pasa a completo, y no se anota más gente que el cupo.
+Cubre las reglas 3 a 6: el partido copia deporte, fecha y hora de su reserva, el creador queda anotado, se cuentan los jugadores, y no se anota más gente que el cupo.
 
 **Una cosa por trigger (SRP).** Cada trigger tiene una sola razón para cambiar:
 
@@ -68,8 +68,8 @@ Cubre las reglas 3 a 6: el partido copia deporte, fecha y hora de su reserva, el
 |---|---|---|---|
 | `trg_partido_datos` | `BEFORE INSERT` en `partido` | Copia deporte, fecha y hora desde la reserva | `db/01-schema.sql:171-186` |
 | `trg_partido_creador` | `AFTER INSERT` en `partido` | Anota al creador como primer participante | `db/01-schema.sql:189-201` |
-| `trg_participante_cambio` | `AFTER INSERT` o `DELETE` en `participante_partido` | Recalcula `jugadores_actuales` y el estado | `db/01-schema.sql:204-231` |
-| `trg_participante_cupo` (nuevo) | `BEFORE INSERT` en `participante_partido` | Rechaza la inscripción si el partido no está abierto | `db/01-schema.sql:233-259` |
+| `trg_participante_cambio` | `AFTER INSERT` o `DELETE` en `participante_partido` | Recalcula `jugadores_actuales` | `db/01-schema.sql:204-227` |
+| `trg_participante_cupo` (nuevo) | `BEFORE INSERT` en `participante_partido` | Rechaza la inscripción si el partido está cancelado o lleno | `db/01-schema.sql:233-259` |
 
 **Parecido a Observer.** Quien inserta un partido o un participante no sabe que hay triggers: la base reacciona sola al evento. Es una analogía y no el patrón literal del GoF (no hay una lista de observadores registrados), pero la idea es la misma: algo reacciona a un evento sin que quien lo dispara lo conozca.
 
@@ -167,6 +167,26 @@ Aplicado a las 7 reglas:
 Descartamos A porque la prueba de 5.2 muestra que la regla se rompe en cuanto alguien no bloquea. B, porque reescribe lo que ya funciona y deja la base sin defensas. D, porque es el cambio más grande y no resuelve el cupo.
 
 Habría que revisar esta decisión si se cambia de motor de base de datos, o si la API crece al punto de necesitar tests unitarios de estas reglas.
+
+### 4.1 "Completo" se calcula, no se guarda
+
+Al principio el estado del partido podía ser `abierto`, `completo` o `cancelado`, y `trg_participante_cambio` lo pasaba a `completo` al llenarse. Pero "completo" es un dato derivado: es exactamente `jugadores_actuales >= jugadores_necesarios`. Guardarlo era tener la misma información dos veces, con el riesgo de que quede desincronizada (por ejemplo, si alguien cambia `jugadores_necesarios` y nadie recalcula el estado).
+
+Ahora el estado solo puede ser `abierto` o `cancelado`. `cancelado` sí se guarda, porque no se puede deducir de otros datos del partido. `trg_participante_cambio` solo actualiza el contador, y `trg_participante_cupo` rechaza la inscripción si el partido está cancelado o si el contador ya llegó al cupo. El `FOR UPDATE` se mantiene: es lo que hace que, si dos se suman a la vez, el segundo espere y vea el contador actualizado.
+
+La API devuelve `completo` calculado en la consulta, y el listado de partidos abiertos filtra con `estado = 'abierto' AND jugadores_actuales < jugadores_necesarios`.
+
+**Costo:** cada consulta que necesita saber si el partido está lleno compara dos columnas de la misma fila, algo que no le cuesta casi nada a la base.
+
+Se probó sobre la base recreada:
+
+| Caso | Resultado |
+|---|---|
+| Completar el partido 3 (pádel, 4 lugares) y sumar un quinto | Rechazado: "El partido ya no tiene lugar" |
+| Que uno se baje del partido lleno | `jugadores_actuales` baja a 3 y se puede volver a sumar |
+| Cancelar la reserva 4 y sumarse a su partido (el 2) | Rechazado: "El partido ya no tiene lugar" |
+| Dos personas por el último lugar del partido 1 al mismo tiempo | Entra una sola: quedan 10 filas y el contador en 10 |
+| `UPDATE partido SET estado = 'completo'` | Rechazado por el `CHECK` |
 
 ## 5. Evidencia y trade-offs
 
