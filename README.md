@@ -196,8 +196,13 @@ Todas piden sesión de **administrador**. El complejo sale del token, nunca del 
 |---|---|---|---|
 | `GET` | `/api/partidos?deporte=&cancha_id=&complejo_id=` | libre | Partidos abiertos, con lugar y que todavía no empezaron, ordenados por horario. Los filtros son opcionales |
 | `GET` | `/api/partidos/:id` | libre | Un partido con sus `participantes` (nombre y apellido) |
+| `POST` | `/api/partidos` | sesión | Body `{ reserva_id, jugadores_necesarios }`. Publica una reserva propia, confirmada y futura. Los jugadores van de 2 a la capacidad de la cancha. El creador queda anotado solo |
+| `POST` | `/api/partidos/:id/participantes` | sesión | Sumarse. 409 si ya estás anotado o si no queda lugar |
+| `DELETE` | `/api/partidos/:id/participantes` | sesión | Bajarse. El creador no puede (403): tiene que cancelar la reserva |
 
-Cada partido trae `completo`, calculado como `jugadores_actuales >= jugadores_necesarios`.
+Cada partido trae `completo`, calculado como `jugadores_actuales >= jugadores_necesarios`. Los que publican, se suman o se bajan devuelven el partido actualizado, con los participantes.
+
+El cupo no se controla en el código: el trigger de la base bloquea la fila del partido antes de anotar a alguien, así que si dos personas piden el último lugar a la vez, entra una sola.
 
 ### Errores
 
