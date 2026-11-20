@@ -43,3 +43,40 @@ export async function listarParticipantes(partidoId) {
   );
   return rows;
 }
+
+// La reserva con lo que hace falta para decidir si se puede publicar un partido.
+export async function buscarReserva(id) {
+  const { rows } = await pool.query(
+    `SELECT r.id, r.usuario_id, r.estado, r.inicio > now() AS es_futura, c.capacidad
+       FROM reserva r
+       JOIN cancha c ON c.id = r.cancha_id
+      WHERE r.id = $1`,
+    [id],
+  );
+  return rows[0];
+}
+
+// Solo devuelve el id: el RETURNING sale antes de que el trigger anote al creador,
+// asi que jugadores_actuales vendria en 0. El servicio lee el partido despues.
+export async function crear({ reservaId, creadorId, jugadoresNecesarios }) {
+  const { rows } = await pool.query(
+    `INSERT INTO partido (jugadores_necesarios, reserva_id, creador_id)
+     VALUES ($1, $2, $3)
+     RETURNING id`,
+    [jugadoresNecesarios, reservaId, creadorId],
+  );
+  return rows[0].id;
+}
+
+export async function agregarParticipante(partidoId, usuarioId) {
+  await pool.query('INSERT INTO participante_partido (usuario_id, partido_id) VALUES ($1, $2)', [usuarioId, partidoId]);
+}
+
+// Devuelve cuantas filas borro: 0 si el usuario no estaba anotado.
+export async function quitarParticipante(partidoId, usuarioId) {
+  const { rowCount } = await pool.query(
+    'DELETE FROM participante_partido WHERE partido_id = $1 AND usuario_id = $2',
+    [partidoId, usuarioId],
+  );
+  return rowCount;
+}
