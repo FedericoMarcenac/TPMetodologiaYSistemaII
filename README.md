@@ -68,7 +68,8 @@ TPMetodologiaYSistemaII/
 │   └── 02-seed.sql ── Datos de ejemplo (2 complejos, 6 canchas, 4 usuarios)
 │
 ├── docs/
-│   └── decisiones-diseño.md ── Análisis de diseño del Taller II
+│   ├── decisiones-diseño.md ── Análisis de diseño del Taller II (reglas en la base)
+│   └── arquitectura.md ── Capas, patrones de diseño y diagramas de la API y el front
 │
 ├── web/ ── React + Vite + Chakra
 │   ├── Dockerfile
@@ -110,6 +111,8 @@ Todos con la contraseña `turnito123`:
 ## API
 
 Todas las rutas empiezan con `/api` y responden JSON. Los errores vuelven siempre como `{ "error": "mensaje" }`.
+
+> Los patrones de diseño (Repository, Service Layer, Chain of Responsibility, Singleton, Facade, Observer y Proxy de protección), con su porqué y los diagramas, están en [`docs/arquitectura.md`](docs/arquitectura.md).
 
 ### Capas
 
@@ -187,6 +190,15 @@ Todas piden sesión de **administrador**. El complejo sale del token, nunca del 
 | `PUT` | `/api/admin/canchas/:id` | Mismo body. 403 si la cancha es de otro complejo |
 | `GET` | `/api/admin/reservas?fecha=AAAA-MM-DD` | Reservas del día (hoy si no se manda fecha), con quién reservó y si tienen partido |
 
+### Partidos
+
+| Método | Ruta | Acceso | Qué hace |
+|---|---|---|---|
+| `GET` | `/api/partidos?deporte=&cancha_id=&complejo_id=` | libre | Partidos abiertos, con lugar y que todavía no empezaron, ordenados por horario. Los filtros son opcionales |
+| `GET` | `/api/partidos/:id` | libre | Un partido con sus `participantes` (nombre y apellido) |
+
+Cada partido trae `completo`, calculado como `jugadores_actuales >= jugadores_necesarios`.
+
 ### Errores
 
 El manejador central traduce los errores de la base que son reglas de negocio:
@@ -225,6 +237,44 @@ Las pantallas viven en `web/src/paginas/`, una por archivo, y ya están todas cr
 | `/admin` | `Administracion.jsx` | administrador |
 
 Sin sesión, las rutas protegidas mandan al login; un jugador que entra a `/admin` vuelve al inicio.
+
+### Diseño
+
+- **Colores:** verde de cancha (`colorPalette="brand"`, el de todos los componentes por defecto) para las acciones, y naranja de pelota (`colorPalette="pelota"`) para lo que pide atención, como los lugares que faltan en un partido. El fondo queda neutro. Están definidos en `web/src/tema.js`.
+- **Tipografía:** Barlow Condensed para títulos y Barlow para el resto.
+- **Modo oscuro:** sigue al sistema y se puede cambiar con el botón de la luna; queda guardado.
+- **Celular primero:** en pantallas chicas la navegación es una barra de pestañas abajo.
+
+Componentes que usa cada pantalla, con ejemplos en vivo en **http://localhost:5173/componentes**:
+
+| Componente | Archivo | Para qué |
+|---|---|---|
+| `Encabezado` | `componentes/estados.jsx` | Título de la pantalla, con descripción y un botón opcional |
+| `Cargando` | `componentes/estados.jsx` | Mientras llegan los datos |
+| `ErrorCarga` | `componentes/estados.jsx` | Si falló la carga, con botón para reintentar |
+| `ListaVacia` | `componentes/estados.jsx` | Cuando no hay resultados: explica qué hacer |
+| `ConfirmarAccion` | `componentes/ConfirmarAccion.jsx` | Antes de cancelar o borrar algo; muestra el error de la API si falla |
+| `avisar()` | `componentes/avisos.jsx` | Aviso corto después de una acción ("Reserva confirmada") |
+| `useCarga()` | `useCarga.js` | Pide los datos y devuelve `{ datos, cargando, error, recargar }` |
+
+Una pantalla típica:
+
+```jsx
+export default function MisReservas() {
+  const { datos, cargando, error, recargar } = useCarga(() => api.get('/reservas/mias'), []);
+  return (
+    <>
+      <Encabezado titulo="Mis reservas" />
+      {cargando && <Cargando />}
+      {error && <ErrorCarga error={error} onReintentar={recargar} />}
+      {datos?.length === 0 && <ListaVacia titulo="Todavía no reservaste" />}
+      {datos?.map((r) => /* ... */)}
+    </>
+  );
+}
+```
+
+Los íconos son de [Lucide](https://lucide.dev/icons): `import { CalendarX } from 'lucide-react'`.
 
 ### Llamar a la API
 

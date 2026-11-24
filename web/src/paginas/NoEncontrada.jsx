@@ -1,14 +1,21 @@
-import { Button, Heading, Stack, Text } from '@chakra-ui/react';
+import { Button } from '@chakra-ui/react';
+import { MapPinOff } from 'lucide-react';
 import { Link } from 'react-router';
+import { Encabezado, ListaVacia } from '../componentes/estados.jsx';
 
 export default function NoEncontrada() {
   return (
-    <Stack gap="3" py="10" align="start">
-      <Heading size="2xl">Esta página no existe</Heading>
-      <Text color="fg.muted">Puede que el link esté mal escrito o que la página se haya movido.</Text>
-      <Button asChild>
-        <Link to="/">Volver al inicio</Link>
-      </Button>
-    </Stack>
+    <>
+      <Encabezado titulo="Fuera de la cancha" />
+      <ListaVacia
+        icono={MapPinOff}
+        titulo="Esta página no existe"
+        descripcion="Puede que el link esté mal escrito o que la página se haya movido."
+      >
+        <Button asChild>
+          <Link to="/">Volver al inicio</Link>
+        </Button>
+      </ListaVacia>
+    </>
   );
 }
