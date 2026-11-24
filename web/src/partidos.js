@@ -16,9 +16,10 @@ export function fechaCorta(fecha) {
   return dia.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-// '2026-11-21' -> 'sábado 21 de noviembre'
+// '2026-11-21' -> 'Sábado, 21 de noviembre'
 export function fechaLarga(fecha) {
-  return diaLocal(fecha).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const texto = diaLocal(fecha).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
 export function lugaresLibres(partido) {
