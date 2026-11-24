@@ -190,6 +190,15 @@ Todas piden sesión de **administrador**. El complejo sale del token, nunca del 
 | `PUT` | `/api/admin/canchas/:id` | Mismo body. 403 si la cancha es de otro complejo |
 | `GET` | `/api/admin/reservas?fecha=AAAA-MM-DD` | Reservas del día (hoy si no se manda fecha), con quién reservó y si tienen partido |
 
+### Partidos
+
+| Método | Ruta | Acceso | Qué hace |
+|---|---|---|---|
+| `GET` | `/api/partidos?deporte=&cancha_id=&complejo_id=` | libre | Partidos abiertos, con lugar y que todavía no empezaron, ordenados por horario. Los filtros son opcionales |
+| `GET` | `/api/partidos/:id` | libre | Un partido con sus `participantes` (nombre y apellido) |
+
+Cada partido trae `completo`, calculado como `jugadores_actuales >= jugadores_necesarios`.
+
 ### Errores
 
 El manejador central traduce los errores de la base que son reglas de negocio:
