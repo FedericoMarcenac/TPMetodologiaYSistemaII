@@ -4,6 +4,7 @@ import auth from './routes/auth.js';
 import administracion from './routes/administracion.js';
 import complejos from './routes/complejos.js';
 import canchas from './routes/canchas.js';
+import reservas from './routes/reservas.js';
 import partidos from './routes/partidos.js';
 import { manejarErrores, rutaInexistente } from './middlewares/errores.js';
 
@@ -17,6 +18,7 @@ app.use('/api/auth', auth);
 app.use('/api/admin', administracion);
 app.use('/api/complejos', complejos);
 app.use('/api/canchas', canchas);
+app.use('/api/reservas', reservas);
 app.use('/api/partidos', partidos);
 
 app.use(rutaInexistente);
