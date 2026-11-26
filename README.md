@@ -7,7 +7,7 @@
 
 Plataforma web para **reservar canchas deportivas y organizar partidos entre jugadores**. Permite gestionar complejos deportivos, canchas de fútbol, básquet y pádel, y reservas por turno. Además, cualquier reserva puede publicarse como **partido abierto** para que otros usuarios se sumen y completen los equipos.
 
-> **Estado:** en desarrollo. Hoy están funcionando el entorno con Docker, la base de datos completa, la base de la API y la pantalla inicial del frontend.
+> **Estado (26/11/2026):** la API está completa (autenticación, complejos, canchas, disponibilidad, reservas, partidos y administración) y tiene 36 tests automáticos. En el front funcionan el registro y el login, el inicio, los partidos (ver, publicar, sumarse y bajarse), el perfil y el panel de administración. Faltan las pantallas de reservas y los tests de reservas y partidos: ver [Próximos pasos](#próximos-pasos).
 
 ## Stack tecnológico
 
@@ -69,7 +69,9 @@ TPMetodologiaYSistemaII/
 │
 ├── docs/
 │   ├── decisiones-diseño.md ── Análisis de diseño del Taller II (reglas en la base)
-│   └── arquitectura.md ── Capas, patrones de diseño y diagramas de la API y el front
+│   ├── arquitectura.md ── Capas, patrones de diseño y diagramas de la API y el front
+│   ├── casos-de-test.md ── Qué prueba cada test y por qué se eligió
+│   └── calidad.md ── Revisión con ESLint: qué encontró y qué se cambió
 │
 ├── web/ ── React + Vite + Chakra
 │   ├── Dockerfile
@@ -79,7 +81,9 @@ TPMetodologiaYSistemaII/
 │       ├── App.jsx ── Todas las rutas de la aplicación
 │       ├── api.js ── Cliente de la API (manda el token)
 │       ├── sesion.jsx ── Usuario logueado: useSesion()
-│       ├── componentes/ ── Layout, RutaProtegida, Pendiente
+│       ├── useCarga.js ── Pide datos y devuelve cargando, error y datos
+│       ├── tema.js ── Colores, tipografías y modo oscuro
+│       ├── componentes/ ── Layout, RutaProtegida, estados de carga, confirmaciones y formularios
 │       └── paginas/ ── Una pantalla por archivo
 │
 └── api/ ── API REST con Express
@@ -94,7 +98,7 @@ TPMetodologiaYSistemaII/
     │   ├── routes/ ── Reciben el pedido y responden JSON
     │   ├── services/ ── Reglas de negocio
     │   └── repositories/ ── Todo el SQL
-    └── test/
+    └── test/ ── Tests automáticos (node:test + supertest)
 ```
 
 ### Usuarios de ejemplo
@@ -190,6 +194,28 @@ Todas piden sesión de **administrador**. El complejo sale del token, nunca del 
 | `PUT` | `/api/admin/canchas/:id` | Mismo body. 403 si la cancha es de otro complejo |
 | `GET` | `/api/admin/reservas?fecha=AAAA-MM-DD` | Reservas del día (hoy si no se manda fecha), con quién reservó y si tienen partido |
 
+### Complejos, canchas y disponibilidad
+
+Todas libres, sin sesión.
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `GET` | `/api/complejos` | Complejos con su horario de apertura y cierre |
+| `GET` | `/api/canchas?deporte=&complejo_id=` | Canchas con el nombre del complejo. Los filtros son opcionales; uno inválido da 400 |
+| `GET` | `/api/canchas/:id/disponibilidad?fecha=AAAA-MM-DD` | Turnos de una hora del día, desde la apertura hasta el cierre: `[{ hora: "19:00", estado: "libre" }]`. El estado es `libre`, `ocupado` o `pasado`; una cancha en mantenimiento no ofrece turnos libres |
+
+### Reservas
+
+Todas piden sesión.
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `POST` | `/api/reservas` | Body `{ cancha_id, fecha, hora }`, con la hora en punto. El fin (una hora después) y el precio los pone la API. 409 si el turno ya está ocupado o la cancha no está disponible; 400 si el turno ya pasó o está fuera del horario del complejo |
+| `GET` | `/api/reservas/mias` | Mis reservas, con la cancha, el complejo y el `partido_id` si tienen partido |
+| `PATCH` | `/api/reservas/:id/cancelar` | Cancela una reserva propia que todavía no empezó. Si tenía partido, el trigger de la base lo cancela también |
+
+Que dos reservas no se superpongan lo garantiza la base con la restricción `EXCLUDE`, no un `SELECT` previo: ver [Reservas sin superposición](#reservas-sin-superposición).
+
 ### Partidos
 
 | Método | Ruta | Acceso | Qué hace |
@@ -230,7 +256,7 @@ Corren contra la base de Docker. Las pruebas que escriben en la base lo hacen de
 
 ## Frontend
 
-Las pantallas viven en `web/src/paginas/`, una por archivo, y ya están todas creadas y conectadas en `App.jsx`. Las que todavía no se hicieron muestran "Pantalla en construcción" con el número de ticket: cada uno edita solo el archivo de su pantalla.
+Las pantallas viven en `web/src/paginas/`, una por archivo, y están todas conectadas en `App.jsx`. Faltan `Canchas.jsx`, `Cancha.jsx` y `MisReservas.jsx` (tickets F5, F6 y F7), que todavía muestran "Pantalla en construcción".
 
 | Ruta | Archivo | Acceso |
 |---|---|---|
@@ -347,10 +373,14 @@ Comportamiento verificado:
 ## Próximos pasos
 
 - [x] **API**: proyecto Express con conexión a la base y manejo de errores
-- [x] **Autenticación**: registro, login con JWT y middleware de sesión
-- [ ] **Reservas**: grilla de disponibilidad por día y alta de reservas
-- [ ] **Partidos**: listado de partidos abiertos y sumarse a uno
-- [ ] **Panel de administración**: gestión de las canchas del complejo propio (la API ya está; falta la pantalla)
+- [x] **Autenticación**: registro, login con JWT y middleware de sesión, con sus pantallas
+- [x] **Partidos**: API y pantallas para ver, publicar, sumarse y bajarse
+- [x] **Panel de administración**: API y pantalla con la agenda del día y las canchas
+- [x] **Inicio y perfil**
+- [x] **Calidad**: ESLint en la API y el front ([`docs/calidad.md`](docs/calidad.md)) y casos de test justificados ([`docs/casos-de-test.md`](docs/casos-de-test.md))
+- [ ] **Reservas**: la API está; faltan las pantallas de canchas, grilla de turnos y mis reservas (F5, F6, F7)
+- [ ] **Tests de reservas y de partidos** (F8, N8)
+- [ ] **Documento**: secciones 6 (Reservas) y 7 (Partidos) de [`docs/arquitectura.md`](docs/arquitectura.md) (F9, N9)
 
 ## Notas
 
