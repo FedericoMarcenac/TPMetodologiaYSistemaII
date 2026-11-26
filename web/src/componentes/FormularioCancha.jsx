@@ -95,7 +95,7 @@ export default function FormularioCancha({ cancha, onGuardada, children }) {
               <form id={idFormulario} onSubmit={guardar} noValidate>
                 <Stack gap="4">
                   {errorGeneral && (
-                    <Alert.Root status="error" borderRadius="lg">
+                    <Alert.Root status="error" borderRadius="lg" role="alert">
                       <Alert.Indicator />
                       <Alert.Title>{errorGeneral}</Alert.Title>
                     </Alert.Root>
