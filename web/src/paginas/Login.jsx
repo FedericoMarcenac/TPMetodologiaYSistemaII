@@ -54,7 +54,7 @@ export default function Login() {
       <form onSubmit={enviar} noValidate>
         <Stack gap="4">
           {error && (
-            <Alert.Root status="error" borderRadius="lg">
+            <Alert.Root status="error" borderRadius="lg" role="alert">
               <Alert.Indicator />
               <Alert.Title>{error}</Alert.Title>
             </Alert.Root>
