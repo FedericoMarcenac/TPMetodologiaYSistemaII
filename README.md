@@ -7,7 +7,7 @@
 
 Plataforma web para **reservar canchas deportivas y organizar partidos entre jugadores**. Permite gestionar complejos deportivos, canchas de fútbol, básquet y pádel, y reservas por turno. Además, cualquier reserva puede publicarse como **partido abierto** para que otros usuarios se sumen y completen los equipos.
 
-> **Estado (27/11/2026):** la API está completa (autenticación, complejos, canchas, disponibilidad, reservas, partidos y administración) y tiene 48 tests automáticos. En el front funcionan el registro y el login, el inicio, los partidos (ver, publicar, sumarse y bajarse), el perfil y el panel de administración. Faltan las pantallas de reservas y los tests de reservas: ver [Próximos pasos](#próximos-pasos).
+> **Estado (27/11/2026):** la API está completa (autenticación, complejos, canchas, disponibilidad, reservas, partidos y administración) y tiene 58 tests automáticos. En el front funcionan todas las pantallas: el registro y el login, el inicio, las canchas con su grilla de turnos, las reservas (reservar, ver y cancelar), los partidos (ver, publicar, sumarse y bajarse), el perfil y el panel de administración.
 
 ## Stack tecnológico
 
@@ -267,7 +267,7 @@ ESLint con las reglas recomendadas (y las de hooks de React en el front). Qué e
 
 ## Frontend
 
-Las pantallas viven en `web/src/paginas/`, una por archivo, y están todas conectadas en `App.jsx`. Faltan `Canchas.jsx`, `Cancha.jsx` y `MisReservas.jsx` (tickets F5, F6 y F7), que todavía muestran "Pantalla en construcción".
+Las pantallas viven en `web/src/paginas/`, una por archivo, y están todas conectadas en `App.jsx`.
 
 | Ruta | Archivo | Acceso |
 |---|---|---|
@@ -391,7 +391,7 @@ Comportamiento verificado:
 - [x] **Calidad**: ESLint en la API y el front ([`docs/calidad.md`](docs/calidad.md)) y casos de test justificados ([`docs/casos-de-test.md`](docs/casos-de-test.md))
 - [x] **Tests de partidos** (N8)
 - [x] **Documento**: sección 7 (Partidos) de [`docs/arquitectura.md`](docs/arquitectura.md) (N9)
-- [ ] **Reservas**: la API está; faltan las pantallas de canchas, grilla de turnos y mis reservas (F5, F6, F7)
+- [x] **Reservas**: API y pantallas de canchas, grilla de turnos y mis reservas (F5, F6, F7)
 - [x] **Tests de reservas** (F8)
 - [x] **Documento**: sección 6 (Reservas) de [`docs/arquitectura.md`](docs/arquitectura.md) (F9)
 
