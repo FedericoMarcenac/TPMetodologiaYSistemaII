@@ -79,14 +79,20 @@ Estos tests provocan el error real en la base (dentro de una transacción que se
 | Disponibilidad: una cancha en mantenimiento no ofrece turnos libres | Límite | El estado de la cancha manda sobre el horario. |
 | Disponibilidad: fecha mal escrita o inexistente 400, cancha inexistente 404 | Error | Entradas rotas con el código correcto. |
 
-## Reservas (F8, #25) · Fede
+## Reservas (`reservas.test.js`) · Fede
 
-Pendiente. Casos previstos en el issue, para completar con su tipo y su porqué cuando se suban los tests:
-
-- Reservar un turno libre: 201.
-- Reservar un turno ocupado: 409.
-- Dos pedidos al mismo turno a la vez: entra uno solo.
-- Cancelar libera el turno.
+| Caso | Tipo | Por qué |
+|---|---|---|
+| Sin sesión no se puede reservar, ver reservas ni cancelar: 401 | Error | Reservar compromete a una persona: sin saber quién es, no hay reserva. |
+| Reservar un turno libre: 201, el servidor calcula el fin y congela el precio | Normal | Es el camino principal. Comprueba que fin y precio no los manda el cliente. |
+| Reservar un turno ocupado: 409 | Error | La regla que no se puede romper: dos reservas en el mismo turno. |
+| Dos pedidos al mismo turno a la vez: entra uno solo | Límite | Es la condición de carrera: solo la restricción de la base lo garantiza, un chequeo previo no. |
+| Turnos que no corresponden: pasado, fuera de horario, cancha en mantenimiento, datos mal | Error | Cada regla del servicio con su código: 400 para datos inválidos y 409 para una cancha que no está disponible. |
+| Mis reservas: solo las propias, con cancha, complejo y partido_id | Normal | Es lo que muestra la pantalla de reservas. Nadie ve las de otro. |
+| Cancelar libera el turno: otro puede reservarlo | Normal | Una reserva cancelada sale de la restricción de solape y el turno vuelve a estar libre. |
+| Cancelar una reserva ajena 403, inexistente 404, ya cancelada 409 | Error | Nadie cancela lo que no es suyo, y repetir la cancelación no puede romper nada. |
+| Cancelar una reserva con partido cancela también el partido | Normal | Lo hace `trg_reserva_cancelada` en la base, sin que el servicio lo sepa. |
+| Cancelar una reserva que ya empezó: 400 | Límite | El borde entre futura y pasada: un turno en curso ya no se puede cancelar. |
 
 ## Partidos (`partidos.test.js`) · Nacho
 
