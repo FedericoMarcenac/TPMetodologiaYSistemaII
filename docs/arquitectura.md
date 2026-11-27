@@ -297,4 +297,88 @@ Que la base rechace y la API traduzca es lo que hace seguras las reglas aunque l
 
 ## 7. Partidos
 
-> Pendiente: ticket N9 (#35). Diagrama de secuencia de "sumarse", incluido el bloqueo de la fila que evita pasarse del cupo.
+Un partido nace de una reserva: quien reservó la cancha lo publica y dice cuántos jugadores necesita, y los demás se suman hasta llenarlo. Las reglas se reparten así:
+
+| Regla | Dónde vive | Por qué ahí |
+|---|---|---|
+| Solo se publica desde una reserva propia, confirmada y futura, para 2 jugadores como mínimo y la capacidad de la cancha como máximo | [`partidoService.js`](../api/src/services/partidoService.js) | Depende de quién pide y de la hora actual |
+| El creador no se puede bajar (tiene que cancelar la reserva) | `partidoService.js` | Depende de quién pide |
+| Una reserva genera un solo partido, y nadie se anota dos veces | `UNIQUE` de la base | Tiene que valer aunque lleguen dos pedidos iguales a la vez |
+| Deporte, fecha y hora salen de la reserva, y el creador queda anotado | `trg_partido_datos` y `trg_partido_creador` | Así no pueden quedar distintos de la reserva |
+| No se pasa del cupo, y no se suma nadie a un partido cancelado | `trg_participante_cupo` | Es la regla que se rompe con dos pedidos simultáneos (ver 7.2) |
+| `jugadores_actuales` cuenta a los anotados | `trg_participante_cambio` | Se recalcula en cada alta y en cada baja, sin depender de la API |
+
+"Completo" no es un estado guardado: es `jugadores_actuales >= jugadores_necesarios`, calculado en cada consulta. Sumarse o bajarse nunca cambia el `estado` del partido, que solo puede ser `abierto` o `cancelado` (la decisión está en [`decisiones-diseño.md`](decisiones-diseño.md), 4.1).
+
+### 7.1 Sumarse a un partido
+
+```mermaid
+sequenceDiagram
+    actor J as Jugador
+    participant MW as requireAuth
+    participant R as routes/partidos.js
+    participant S as partidoService
+    participant Repo as partidoRepository
+    participant DB as PostgreSQL
+    participant E as manejarErrores
+
+    J->>MW: POST /api/partidos/3/participantes + token
+    MW->>MW: ¿token válido? (si no, 401)
+    MW->>R: req.usuario
+    R->>S: sumarse(usuario, '3')
+    S->>Repo: buscarPorId(3)
+    Repo->>DB: SELECT ... FROM partido
+    DB-->>S: partido (si no existe, 404)
+    S->>Repo: agregarParticipante(3, usuario.id)
+    Repo->>DB: INSERT INTO participante_partido
+    Note over DB: BEFORE INSERT: trg_participante_cupo<br/>SELECT * FROM partido WHERE id = 3 FOR UPDATE<br/>(bloquea la fila del partido hasta el COMMIT)
+    alt cancelado, o jugadores_actuales >= jugadores_necesarios
+        DB-->>E: 23514 "El partido ya no tiene lugar"
+        E-->>J: 409
+    else ya estaba anotado
+        DB-->>E: 23505 en el UNIQUE (partido_id, usuario_id)
+        E-->>J: 409 "Ya estás anotado en este partido"
+    else hay lugar
+        Note over DB: se inserta la fila<br/>AFTER INSERT: trg_participante_cambio<br/>UPDATE partido SET jugadores_actuales = count(*)<br/>COMMIT: se libera el bloqueo
+        DB-->>S: ok
+        S->>Repo: buscarPorId(3) y listarParticipantes(3)
+        Repo-->>S: partido actualizado, con completo calculado
+        S-->>R: partido
+        R-->>J: 201 + partido en JSON
+    end
+```
+
+Lo que conviene notar:
+
+- **El servicio no cuenta lugares.** No hace un `SELECT` para ver si queda cupo antes de insertar: entre esa consulta y el `INSERT` podría entrar otra persona. Inserta directo, y si no hay lugar la base lo rechaza y [`manejarErrores`](../api/src/middlewares/errores.js) lo traduce a 409 (sección 5).
+- **El bloqueo dura una sola sentencia.** `agregarParticipante` es un único `INSERT` y PostgreSQL lo ejecuta en su propia transacción. El `FOR UPDATE` del trigger toma la fila del partido, el `AFTER INSERT` actualiza el contador, y el `COMMIT` del final libera la fila. Así el bloqueo dura milisegundos.
+- **Al llenarse no cambia ningún estado.** El partido sigue `abierto`. Deja de aparecer en `GET /api/partidos` porque esa consulta pide `jugadores_actuales < jugadores_necesarios`, y el detalle lo muestra con `completo: true`.
+
+### 7.2 Dos personas por el último lugar
+
+El caso que justifica el `FOR UPDATE`: un partido para 4 con 3 anotados, y Ana y Beto aprietan "Sumarme" al mismo tiempo. Cada pedido usa una conexión distinta del pool, así que llegan a la base como dos transacciones en paralelo.
+
+```mermaid
+sequenceDiagram
+    participant A as INSERT de Ana
+    participant DB as Fila del partido (3 de 4)
+    participant B as INSERT de Beto
+
+    A->>DB: trg_participante_cupo: SELECT ... FOR UPDATE
+    DB-->>A: bloqueada para Ana, ve 3 de 4: hay lugar
+    B->>DB: trg_participante_cupo: SELECT ... FOR UPDATE
+    Note over B,DB: Beto espera: la fila está bloqueada
+    A->>DB: inserta, trg_participante_cambio deja 4 de 4
+    A->>DB: COMMIT (libera la fila)
+    DB-->>B: ahora sí, lee la fila actualizada: 4 de 4
+    B-->>B: RAISE 'El partido ya no tiene lugar' (23514)
+    Note over A,B: Ana recibe 201 y Beto 409
+```
+
+Sin el bloqueo, las dos lecturas ven 3 de 4 al mismo tiempo, las dos insertan y el partido queda 5 de 4. Esa prueba está hecha a mano en psql en [`decisiones-diseño.md`](decisiones-diseño.md) (5.2). Además quedó como test automático en [`api/test/partidos.test.js`](../api/test/partidos.test.js): los dos pedidos salen juntos y siempre entra uno solo.
+
+### 7.3 Publicar y bajarse
+
+- **Publicar** (`POST /api/partidos`): el servicio valida la reserva y la cantidad de jugadores, y el repositorio hace un solo `INSERT INTO partido`. Los triggers completan deporte, fecha y hora desde la reserva (`trg_partido_datos`), y anotan al creador (`trg_partido_creador`), con lo que el contador queda en 1. Como el `RETURNING` sale antes de que se anote el creador, el servicio vuelve a leer el partido antes de responder.
+- **Bajarse** (`DELETE /api/partidos/:id/participantes`): el servicio rechaza al creador (403) y borra la fila. Si no había fila que borrar, responde 404. `trg_participante_cambio` recalcula el contador. Si el partido estaba lleno, vuelve a tener lugar y reaparece en la lista sin que nadie toque su estado.
+- **Cancelar la reserva**: `trg_reserva_cancelada` pasa el partido a `cancelado`. Desde ese momento `trg_participante_cupo` rechaza a cualquiera que quiera sumarse.
