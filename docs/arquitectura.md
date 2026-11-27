@@ -293,7 +293,95 @@ Que la base rechace y la API traduzca es lo que hace seguras las reglas aunque l
 
 ## 6. Reservas
 
-> Pendiente: ticket F9 (#26). Diagrama de secuencia de una reserva pasando por las capas hasta la restricción de la base.
+Una reserva ocupa una cancha durante una hora, y la hace un jugador con sesión iniciada. Las reglas se reparten así:
+
+| Regla | Dónde vive | Por qué ahí |
+|---|---|---|
+| Fecha y hora bien escritas, hora en punto, dentro del horario del complejo, cancha disponible y turno futuro | [`reservaService.js`](../api/src/services/reservaService.js) | Dependen del pedido y de la hora actual |
+| El fin (+1 hora) y el precio los calcula el servidor, y el precio queda congelado en la reserva | `reservaService.js` | El cliente no puede decidir cuánto paga ni cuánto dura |
+| Solo cancela quien reservó, y solo si el turno no empezó | `reservaService.js` | Depende de quién pide y de la hora actual |
+| Dos reservas de la misma cancha no se superponen | `reserva_sin_solape` (restricción de exclusión) | Tiene que valer aunque lleguen dos pedidos iguales a la vez |
+| Al cancelar la reserva, su partido pasa a `cancelado` | `trg_reserva_cancelada` | Pasa siempre que se cancele una reserva, sin importar quién lo haga |
+
+### 6.1 Reservar un turno
+
+El recorrido de `POST /api/reservas` por las capas, hasta la base:
+
+```mermaid
+sequenceDiagram
+    actor Jugador as Jugador (React)
+    participant Auth as requireAuth
+    participant Ruta as routes/reservas.js
+    participant Serv as reservaService
+    participant RepC as canchaRepository
+    participant RepR as reservaRepository
+    participant BD as PostgreSQL
+    participant Err as manejarErrores
+
+    Jugador->>Auth: POST /api/reservas con cancha_id, fecha, hora y el token
+    alt token ausente o inválido
+        Auth-->>Jugador: 401
+    end
+    Auth->>Ruta: req.usuario
+    Ruta->>Serv: reservar(usuario, body)
+    Serv->>Serv: valida fecha y hora en punto
+    Serv->>RepC: buscarPorId(cancha_id)
+    RepC->>BD: SELECT de la cancha y el horario del complejo
+    BD-->>RepC: cancha
+    Serv->>Serv: cancha disponible, dentro del horario, turno futuro
+    Serv->>Serv: calcula el fin (+1 hora) y congela el precio
+    Serv->>RepR: crear(usuarioId, canchaId, inicio, fin, precioTotal)
+    RepR->>BD: INSERT INTO reserva
+    alt turno libre
+        BD-->>RepR: fila nueva
+        RepR-->>Serv: reserva
+        Serv-->>Ruta: reserva
+        Ruta-->>Jugador: 201 con la reserva
+    else turno ocupado
+        BD-->>RepR: error 23P01 de reserva_sin_solape
+        RepR-->>Err: el error sube sin que nadie lo atrape
+        Err-->>Jugador: 409 Ese turno ya está reservado
+    end
+```
+
+El servicio no pregunta "¿está libre?" antes de insertar. Esa consulta dejaría un hueco: entre el `SELECT` y el `INSERT` otro pedido puede quedarse con el turno. Por eso el servicio solo valida lo que depende del pedido, intenta insertar, y si la base rechaza por superposición el error sube hasta `manejarErrores`, que lo traduce a un 409. Los códigos que el servicio decide por su cuenta son 400 (datos inválidos, fuera de horario, turno pasado), 404 (la cancha no existe) y 409 (cancha en mantenimiento).
+
+### 6.2 Dos pedidos por el mismo turno
+
+Ana y Beto aprietan "Reservar" a las 19:00 al mismo tiempo. Cada pedido usa una conexión distinta del pool, así que llegan a la base como dos transacciones en paralelo:
+
+```mermaid
+sequenceDiagram
+    participant A as INSERT de Ana
+    participant BD as reserva_sin_solape
+    participant B as INSERT de Beto
+
+    A->>BD: INSERT de la cancha 2 a las 19:00
+    B->>BD: INSERT de la cancha 2 a las 19:00
+    Note over B,BD: Beto espera: el turno de Ana todavía no terminó
+    BD-->>A: COMMIT, el turno queda de Ana
+    BD-->>B: 23P01, se superpone con la reserva de Ana
+    Note over A,B: Ana recibe 201 y Beto 409
+```
+
+Esto lo comprueba el test "dos pedidos al mismo turno a la vez: entra uno solo" en [`api/test/reservas.test.js`](../api/test/reservas.test.js): los dos pedidos salen juntos, uno recibe 201, el otro 409, y en la base queda una sola reserva.
+
+### 6.3 Cancelar
+
+`PATCH /api/reservas/:id/cancelar` busca la reserva y valida en el servicio, en este orden:
+
+| Caso | Respuesta |
+|---|---|
+| La reserva no existe | 404 |
+| Es de otra persona | 403 |
+| Ya estaba cancelada | 409 |
+| El turno ya empezó | 400 |
+
+Si pasa todas las validaciones, el repositorio cambia el `estado` a `cancelada`. Dos cosas ocurren sin que el servicio las programe:
+
+- **El turno queda libre.** La restricción `reserva_sin_solape` solo mira reservas no canceladas, así que otro jugador puede reservar el mismo turno enseguida.
+- **El partido se cancela.** Si la reserva tenía un partido, `trg_reserva_cancelada` lo pasa a `cancelado` y desde ese momento nadie puede sumarse (ver 7.3).
+
 
 ## 7. Partidos
 
