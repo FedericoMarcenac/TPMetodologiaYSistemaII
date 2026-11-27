@@ -52,8 +52,10 @@ export default function Cancha() {
       recargar();
     } catch (e) {
       // Si otra persona tomó el turno mientras esta pantalla estaba abierta, la API responde 409.
-      if (e.status === 409) recargar();
-      throw e;
+      // Va como aviso y no en el diálogo: al recargar, la grilla se desmonta y el mensaje no llegaría a verse.
+      if (e.status !== 409) throw e;
+      avisar(e.message, 'error', 'Elegí otro horario.');
+      recargar();
     } finally {
       setReservando(null);
     }

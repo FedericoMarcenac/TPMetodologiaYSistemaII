@@ -287,6 +287,7 @@ Todos los errores salen de un solo lugar ([`middlewares/errores.js`](../api/src/
 | Dato único repetido (`23505`) | Email ya registrado | 409 con un mensaje según la restricción |
 | Trigger de cupo (`23514` sin restricción) | Partido lleno | 409 "El partido ya no tiene lugar" |
 | `CHECK` de una tabla (`23514` con restricción) | Capacidad 0 | 400 |
+| Bloqueo mutuo (`40P01`) | Dos reservas al mismo turno a la vez que se esperan entre sí: la base corta una | 409 "Otro pedido se cruzó con el tuyo" |
 | Cualquier otro | Error de programación | 500, y se registra en la consola de la API |
 
 Que la base rechace y la API traduzca es lo que hace seguras las reglas aunque lleguen dos pedidos al mismo tiempo: la API no tiene que consultar antes de escribir, que es justo donde aparecen las condiciones de carrera.
