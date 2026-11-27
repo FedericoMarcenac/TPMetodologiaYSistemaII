@@ -392,7 +392,7 @@ Comportamiento verificado:
 - [x] **Tests de partidos** (N8)
 - [x] **Documento**: sección 7 (Partidos) de [`docs/arquitectura.md`](docs/arquitectura.md) (N9)
 - [ ] **Reservas**: la API está; faltan las pantallas de canchas, grilla de turnos y mis reservas (F5, F6, F7)
-- [ ] **Tests de reservas** (F8)
+- [x] **Tests de reservas** (F8)
 - [ ] **Documento**: sección 6 (Reservas) de [`docs/arquitectura.md`](docs/arquitectura.md) (F9)
 
 ## Notas
