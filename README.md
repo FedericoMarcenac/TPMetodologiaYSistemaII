@@ -241,6 +241,7 @@ El manejador central traduce los errores de la base que son reglas de negocio:
 | `23514` sin restricción | El trigger de cupo: el partido ya no tiene lugar | 409 |
 | `23514` con restricción | Un `CHECK` de una tabla (por ejemplo, capacidad 0) | 400 |
 | `23503` | Referencia a algo que no existe | 400 |
+| `40P01` | Dos pedidos al mismo turno a la vez se traban entre sí y la base corta uno | 409 |
 
 Para cortar un pedido desde un servicio: `throw new HttpError(404, 'mensaje')`. Cualquier otro error devuelve 500.
 

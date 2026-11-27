@@ -23,6 +23,9 @@ export function traducirErrorPg(err) {
       return err.constraint ? [400, 'Datos inválidos'] : [409, err.message];
     case '23503':
       return [400, 'Hace referencia a un dato que no existe'];
+    case '40P01':
+      // Dos INSERT al mismo turno a la vez pueden esperarse entre si en la restriccion de solape: Postgres corta uno.
+      return [409, 'Otro pedido se cruzó con el tuyo. Probá de nuevo'];
     case '22P02':
     case '22007':
     case '22008':
