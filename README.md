@@ -228,7 +228,7 @@ docker compose exec api npm test
 
 Corren contra la base de Docker. Las pruebas que escriben en la base lo hacen dentro de una transacción que se deshace al final, o crean sus propios datos y los borran al terminar, así que no ensucian los datos de ejemplo.
 
-Las reservas del seed se ubican en días relativos al día en que se creó la base. Si la base tiene más de un día, algunos tests fallan por las fechas: recreala con `docker compose down -v` y `docker compose up -d` antes de correrlos. Qué prueba cada test de partidos y por qué está en `docs/decisiones-diseño.md` (5.4).
+Las reservas del seed se ubican en días relativos al día en que se creó la base. Si la base tiene más de un día, algunos tests fallan por las fechas: recreala con `docker compose down -v` y `docker compose up -d` antes de correrlos. Qué prueba cada test y por qué está en [`docs/casos-de-test.md`](docs/casos-de-test.md).
 
 ## Frontend
 

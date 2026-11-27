@@ -279,40 +279,6 @@ ROLLBACK;  -- el trigger vuelve a existir
 
 - La lógica se ve menos: para saber qué pasa al anotar a alguien hay que leer el esquema, no la API. Lo compensamos con un comentario por trigger y con este documento.
 - Quedamos atados a PostgreSQL: `btree_gist`, `EXCLUDE` y PL/pgSQL no existen igual en otros motores. Es depender de un detalle concreto y no de una abstracción, lo contrario de lo que pide DIP. Lo aceptamos porque no hay planes de cambiar de motor.
-- Un trigger no se puede probar sin una base levantada. La evidencia de 5.1 y 5.2 son pruebas en psql; los tests automáticos de 5.4 también necesitan la base del contenedor.
+- Un trigger no se puede probar sin una base levantada. La evidencia de 5.1 y 5.2 son pruebas en psql; los tests automáticos ([`casos-de-test.md`](casos-de-test.md)) también necesitan la base del contenedor.
 
 **Sobre el refactoring.** Los dos triggers no son un refactoring: refactorizar es cambiar la estructura sin cambiar el comportamiento, y estos cambian el comportamiento porque corrigen fallas. La alternativa D sí lo hubiera sido. Lo más parecido a un refactoring que tiene el proyecto es el rango de la reserva: cambió cómo se guardan la fecha y la hora, y los tres atributos del documento siguen estando, como columnas generadas.
-
-### 5.4 Tests automáticos de partidos
-
-Las pruebas de 5.2 se hicieron a mano en psql. Las mismas reglas, y las que agregó la API, quedaron como tests en `api/test/partidos.test.js`, que pasan por las rutas igual que el front:
-
-```bash
-docker compose exec api npm test
-```
-
-Cada test crea sus propias reservas en la Cancha 2, que no tiene reservas en el seed, y las borra al terminar. Al borrar una reserva se borran en cascada su partido y sus participantes, así que los datos de ejemplo quedan como estaban.
-
-Elegimos los casos con tres criterios: el camino **normal** de cada acción, los valores **límite** (justo en el borde de lo permitido o justo afuera) y los **errores** que el usuario puede provocar. Cada error tiene que llegar con su código y no como un 500.
-
-| Caso | Tipo | Por qué lo probamos | Resultado esperado |
-|---|---|---|---|
-| Publicar desde una reserva propia | Normal | Es el camino principal: sin esto no hay partidos | 201, el creador queda anotado (1 jugador) y el partido aparece en la lista |
-| Publicar desde una reserva ajena | Error | Nadie puede armar un partido con la cancha que reservó otro | 403 |
-| Publicar sin sesión, con una reserva que no existe o sin datos | Error | Las tres entradas inválidas más comunes, cada una con su código | 401, 404 y 400 |
-| Jugadores necesarios = 1 y = capacidad + 1 | Límite | Justo afuera del rango permitido (de 2 a la capacidad de la cancha) | 400 |
-| Jugadores necesarios = 2 y = capacidad | Límite | Justo en los bordes del rango: se tienen que aceptar | 201 |
-| Jugadores necesarios = 2.5 y = "diez" | Error | Valores que no son un número entero | 400 |
-| Publicar desde una reserva pasada o cancelada | Error | No tiene sentido buscar jugadores para un turno que ya pasó o que se liberó | 400 |
-| Publicar dos veces desde la misma reserva | Error | Una reserva genera como máximo un partido (`UNIQUE` de `reserva_id`) | 409 |
-| Sumarse a un partido con lugar | Normal | Es el camino principal de quien busca partido | 201 y el contador sube en 1 |
-| Sumarse dos veces al mismo partido | Error | El `UNIQUE (partido_id, usuario_id)` tiene que llegar como 409 y no como 500 | 409 |
-| Sumarse sin sesión, a un partido que no existe o con un id mal escrito | Error | Un id como `abc` no puede terminar en un error de la base | 401, 404 y 404 |
-| Dos personas a la vez por el último lugar | Límite | Es el caso que motivó el `FOR UPDATE` del trigger de cupo (5.2): sin el bloqueo entraban las dos | Una recibe 201 y la otra 409. Quedan 2 de 2, el partido queda completo y sale de la lista |
-| Bajarse de un partido completo | Normal | "Completo" se calcula (4.1): al liberarse un lugar el partido tiene que volver a la lista sin que nadie cambie un estado | 200, deja de estar completo, vuelve a la lista y otra persona se puede sumar |
-| El creador intenta bajarse, o se baja alguien que no estaba anotado | Error | Si el creador se va, el partido queda sin responsable: para dejarlo tiene que cancelar la reserva | 403 y 404 |
-| Se cancela la reserva de un partido | Error | `trg_reserva_cancelada`: no se puede jugar en una cancha que ya no está reservada | El partido queda cancelado, sale de la lista y sumarse da 409 |
-
-En el caso de las dos personas a la vez, los dos pedidos salen juntos (`Promise.all`) y usan conexiones distintas del pool, así que llegan a la base como dos transacciones simultáneas. Corrimos el archivo varias veces seguidas y siempre entró una sola.
-
-**Qué no cubren.** La API todavía deja sumarse a un partido que ya empezó. La pantalla esconde el botón, pero la regla no está en la API ni en la base, así que no tiene test.
