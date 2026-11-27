@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Button, Card, Field, HStack, Input, RadioCard, Stack, Text } from '@chakra-ui/react';
+import { Alert, Button, Card, Field, HStack, Input, RadioCard, Stack } from '@chakra-ui/react';
 import { ArrowLeft, CalendarX } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../api.js';
