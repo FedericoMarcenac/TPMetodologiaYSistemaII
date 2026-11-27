@@ -36,7 +36,7 @@ function Dato({ icono: Icono, children }) {
   );
 }
 
-function TarjetaPartido({ partido }) {
+export function TarjetaPartido({ partido }) {
   const libres = lugaresLibres(partido);
   return (
     <Card.Root
