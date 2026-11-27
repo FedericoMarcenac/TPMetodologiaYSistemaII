@@ -228,6 +228,15 @@ docker compose exec api npm test
 
 Corren contra la base de Docker. Las pruebas que escriben en la base lo hacen dentro de una transacción que se deshace al final, así que no ensucian los datos de ejemplo.
 
+### Lint
+
+```bash
+docker compose exec api npm run lint
+docker compose exec web npm run lint
+```
+
+ESLint con las reglas recomendadas (y las de hooks de React en el front). Qué encontró la primera pasada y qué se cambió: [`docs/calidad.md`](docs/calidad.md).
+
 ## Frontend
 
 Las pantallas viven en `web/src/paginas/`, una por archivo, y ya están todas creadas y conectadas en `App.jsx`. Las que todavía no se hicieron muestran "Pantalla en construcción" con el número de ticket: cada uno edita solo el archivo de su pantalla.

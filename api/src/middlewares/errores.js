@@ -5,7 +5,8 @@ export function rutaInexistente(req, res) {
 }
 
 // Ultimo eslabon de la cadena: todo error que se lance en una ruta termina aca.
-export function manejarErrores(err, req, res, next) {
+// Express lo reconoce como manejador de errores porque recibe 4 parametros, aunque no use el cuarto.
+export function manejarErrores(err, req, res, _next) {
   if (err instanceof HttpError) {
     return res.status(err.status).json({ error: err.message });
   }
