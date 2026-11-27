@@ -88,11 +88,26 @@ Pendiente. Casos previstos en el issue, para completar con su tipo y su porqué 
 - Dos pedidos al mismo turno a la vez: entra uno solo.
 - Cancelar libera el turno.
 
-## Partidos (N8, #34) · Nacho
+## Partidos (`partidos.test.js`) · Nacho
 
-Pendiente. Casos previstos en el issue, para completar con su tipo y su porqué cuando se suban los tests:
+| Caso | Tipo | Por qué |
+|---|---|---|
+| Publicar desde una reserva propia: 201, el creador queda anotado y aparece en la lista | Normal | Es el camino principal: sin esto no hay partidos. Comprueba también que `trg_partido_creador` anota al creador. |
+| Publicar desde una reserva ajena: 403 | Error | Nadie puede armar un partido con la cancha que reservó otro. |
+| Publicar sin sesión 401, reserva inexistente 404, faltan datos 400 | Error | Las tres entradas inválidas más comunes, cada una con su código. |
+| Jugadores necesarios = 1 y = capacidad + 1: 400 | Límite | Justo afuera del rango permitido (de 2 a la capacidad de la cancha). |
+| Jugadores necesarios = 2 y = capacidad: 201 | Límite | Justo en los bordes del rango: se tienen que aceptar. |
+| Jugadores necesarios = 2.5 y = "diez": 400 | Error | Valores que no son un número entero. |
+| Publicar desde una reserva pasada o cancelada: 400 | Error | No tiene sentido buscar jugadores para un turno que ya pasó o que se liberó. |
+| Publicar dos veces desde la misma reserva: 409 | Error | Una reserva genera un solo partido (`reserva_id UNIQUE`). `errores.test.js` lo prueba contra la base; acá se prueba por la ruta. |
+| Sumarse a un partido con lugar: 201 y el contador sube | Normal | Es el camino principal de quien busca partido. |
+| Sumarse dos veces: 409 | Error | El `UNIQUE (partido_id, usuario_id)` tiene que llegar como 409 y no como 500. |
+| Sumarse sin sesión 401, a un partido inexistente 404, con un id como `abc` 404 | Error | Un id mal escrito no puede terminar en un error de la base. |
+| Dos personas a la vez por el último lugar: entra una sola | Límite | Es el caso que motivó el `FOR UPDATE` del trigger de cupo: sin el bloqueo entraban las dos. Los dos pedidos salen juntos (`Promise.all`) por conexiones distintas del pool. |
+| Bajarse de un partido completo lo vuelve a abrir | Normal | "Completo" se calcula: al liberarse un lugar el partido vuelve a la lista sin que nadie cambie su estado. |
+| El creador no se puede bajar (403); bajarse sin estar anotado: 404 | Error | Si el creador se va, el partido queda sin responsable: para dejarlo tiene que cancelar la reserva. |
+| Se cancela la reserva: el partido queda cancelado, sale de la lista y sumarse da 409 | Error | `trg_reserva_cancelada` y el trigger de cupo juntos: no se puede jugar en una cancha que ya no está reservada. |
 
-- Publicar desde una reserva propia: 201; desde una ajena: 403.
-- Sumarse dos veces: 409.
-- Dos personas por el último lugar a la vez: entra una sola.
-- Bajarse reabre el partido.
+Cada test crea sus reservas en la Cancha 2, que no tiene reservas en el seed, y las borra al terminar. Al borrarlas se van en cascada sus partidos y participantes.
+
+**Qué no cubren.** La API todavía deja sumarse a un partido que ya empezó. La pantalla esconde el botón, pero la regla no está en la API ni en la base, así que no tiene test.

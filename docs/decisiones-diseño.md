@@ -279,6 +279,6 @@ ROLLBACK;  -- el trigger vuelve a existir
 
 - La lógica se ve menos: para saber qué pasa al anotar a alguien hay que leer el esquema, no la API. Lo compensamos con un comentario por trigger y con este documento.
 - Quedamos atados a PostgreSQL: `btree_gist`, `EXCLUDE` y PL/pgSQL no existen igual en otros motores. Es depender de un detalle concreto y no de una abstracción, lo contrario de lo que pide DIP. Lo aceptamos porque no hay planes de cambiar de motor.
-- Un trigger no se puede probar sin una base levantada. La evidencia de 5.1 y 5.2 son pruebas en psql, no tests automáticos.
+- Un trigger no se puede probar sin una base levantada. La evidencia de 5.1 y 5.2 son pruebas en psql; los tests automáticos ([`casos-de-test.md`](casos-de-test.md)) también necesitan la base del contenedor.
 
 **Sobre el refactoring.** Los dos triggers no son un refactoring: refactorizar es cambiar la estructura sin cambiar el comportamiento, y estos cambian el comportamiento porque corrigen fallas. La alternativa D sí lo hubiera sido. Lo más parecido a un refactoring que tiene el proyecto es el rango de la reserva: cambió cómo se guardan la fecha y la hora, y los tres atributos del documento siguen estando, como columnas generadas.
