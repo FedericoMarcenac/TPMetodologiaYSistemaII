@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, startTransition, useContext, useEffect, useState } from 'react';
 import { api } from './api.js';
 
 const SesionContext = createContext(null);
@@ -40,7 +40,9 @@ export function SesionProvider({ children }) {
   function salir() {
     localStorage.removeItem('token');
     localStorage.removeItem('usuario');
-    setUsuario(null);
+    // En transicion, como los cambios de ruta del router: asi salir() y el navigate('/') que lo sigue
+    // se dibujan juntos y RutaProtegida no alcanza a mandar al login desde una pantalla protegida.
+    startTransition(() => setUsuario(null));
   }
 
   return (
