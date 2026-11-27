@@ -7,7 +7,7 @@
 
 Plataforma web para **reservar canchas deportivas y organizar partidos entre jugadores**. Permite gestionar complejos deportivos, canchas de fútbol, básquet y pádel, y reservas por turno. Además, cualquier reserva puede publicarse como **partido abierto** para que otros usuarios se sumen y completen los equipos.
 
-> **Estado (26/11/2026):** la API está completa (autenticación, complejos, canchas, disponibilidad, reservas, partidos y administración) y tiene 36 tests automáticos. En el front funcionan el registro y el login, el inicio, los partidos (ver, publicar, sumarse y bajarse), el perfil y el panel de administración. Faltan las pantallas de reservas y los tests de reservas y partidos: ver [Próximos pasos](#próximos-pasos).
+> **Estado (27/11/2026):** la API está completa (autenticación, complejos, canchas, disponibilidad, reservas, partidos y administración) y tiene 48 tests automáticos. En el front funcionan el registro y el login, el inicio, los partidos (ver, publicar, sumarse y bajarse), el perfil y el panel de administración. Faltan las pantallas de reservas y los tests de reservas: ver [Próximos pasos](#próximos-pasos).
 
 ## Stack tecnológico
 
@@ -387,9 +387,11 @@ Comportamiento verificado:
 - [x] **Panel de administración**: API y pantalla con la agenda del día y las canchas
 - [x] **Inicio y perfil**
 - [x] **Calidad**: ESLint en la API y el front ([`docs/calidad.md`](docs/calidad.md)) y casos de test justificados ([`docs/casos-de-test.md`](docs/casos-de-test.md))
+- [x] **Tests de partidos** (N8)
+- [x] **Documento**: sección 7 (Partidos) de [`docs/arquitectura.md`](docs/arquitectura.md) (N9)
 - [ ] **Reservas**: la API está; faltan las pantallas de canchas, grilla de turnos y mis reservas (F5, F6, F7)
-- [ ] **Tests de reservas y de partidos** (F8, N8)
-- [ ] **Documento**: secciones 6 (Reservas) y 7 (Partidos) de [`docs/arquitectura.md`](docs/arquitectura.md) (F9, N9)
+- [ ] **Tests de reservas** (F8)
+- [ ] **Documento**: sección 6 (Reservas) de [`docs/arquitectura.md`](docs/arquitectura.md) (F9)
 
 ## Notas
 
