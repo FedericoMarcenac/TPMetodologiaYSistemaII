@@ -31,6 +31,13 @@ docker compose up
 
 Y abrir **http://localhost:5173**.
 
+**Si ya lo tenías clonado**, traé lo último y volvé a construir, así se instalan las librerías nuevas y la base se crea con el esquema actual:
+
+```bash
+git pull
+docker compose down -v && docker compose up --build -V
+```
+
 | Servicio | Puerto | Descripción |
 |---|---|---|
 | `web` | 5173 | Frontend React (Vite) |
@@ -56,6 +63,10 @@ docker compose exec db psql -U turnito -d turnito
 ### Si el puerto está ocupado
 
 Si al levantar aparece `port is already allocated`, hay otro programa usando ese puerto. Se cambia el número de la **izquierda** en `docker-compose.yml` (por ejemplo `"5175:5173"`) y listo.
+
+### Si la página dice "No se pudo conectar con el servidor"
+
+El front anda pero la API no está levantada. `docker compose ps` tiene que mostrar `api` en estado `Up`; si no, `docker compose logs api` dice por qué. Casi siempre es una copia vieja: se arregla con los dos comandos de [Si ya lo tenías clonado](#cómo-levantarlo).
 
 ## Qué hay hecho
 
@@ -83,6 +94,8 @@ TPMetodologiaYSistemaII/
 │       ├── sesion.jsx ── Usuario logueado: useSesion()
 │       ├── useCarga.js ── Pide datos y devuelve cargando, error y datos
 │       ├── tema.js ── Colores, tipografías y modo oscuro
+│       ├── modoColor.js ── Cambia entre modo claro y oscuro y lo recuerda
+│       ├── partidos.js ── Nombres de los deportes y formato de fechas
 │       ├── componentes/ ── Layout, RutaProtegida, estados de carga, confirmaciones y formularios
 │       └── paginas/ ── Una pantalla por archivo
 │
@@ -128,38 +141,36 @@ Cada pedido recorre tres capas, y cada una tiene una sola tarea:
 | Servicios | `src/services/` | Las reglas de negocio: validar, calcular, decidir quién puede hacer qué |
 | Repositorios | `src/repositories/` | Todo el SQL, siempre con parámetros `$1`, `$2` |
 
-Para agregar un endpoint, por ejemplo las canchas:
+Así recorre las capas un pedido real, `PATCH /api/reservas/:id/cancelar`:
 
 ```js
-// src/repositories/canchaRepository.js
-import { pool } from '../db.js';
+// src/app.js
+app.use('/api/reservas', reservas);
 
+// src/routes/reservas.js
+router.use(requireAuth);
+router.patch('/:id/cancelar', async (req, res) => {
+  res.json(await reservaService.cancelar(req.usuario, req.params.id));
+});
+
+// src/services/reservaService.js
+export async function cancelar(usuario, id) {
+  const reserva = await reservaRepository.buscarPorId(Number(id) || 0);
+  if (!reserva) throw new HttpError(404, 'No existe esa reserva');
+  if (reserva.usuario_id !== usuario.id) throw new HttpError(403, 'Esa reserva no es tuya');
+  if (reserva.estado === 'cancelada') throw new HttpError(409, 'Esa reserva ya está cancelada');
+  if (reserva.inicio <= new Date()) throw new HttpError(400, 'No se puede cancelar una reserva que ya empezó');
+  return reservaRepository.cancelar(reserva.id);
+}
+
+// src/repositories/reservaRepository.js
 export async function buscarPorId(id) {
-  const { rows } = await pool.query('SELECT * FROM cancha WHERE id = $1', [id]);
+  const { rows } = await pool.query(`SELECT ${COLUMNAS} FROM reserva r WHERE r.id = $1`, [id]);
   return rows[0];
 }
-
-// src/services/canchaService.js
-import { HttpError } from '../errores.js';
-import * as canchaRepository from '../repositories/canchaRepository.js';
-
-export async function obtener(id) {
-  const cancha = await canchaRepository.buscarPorId(id);
-  if (!cancha) throw new HttpError(404, 'No existe esa cancha');
-  return cancha;
-}
-
-// src/routes/canchas.js
-import { Router } from 'express';
-import * as canchaService from '../services/canchaService.js';
-
-const router = Router();
-router.get('/:id', async (req, res) => res.json(await canchaService.obtener(req.params.id)));
-export default router;
-
-// src/app.js
-app.use('/api/canchas', canchas);
 ```
+
+Un endpoint nuevo sigue el mismo camino: la consulta en el repositorio, la regla en el servicio, la ruta y una línea en `app.js`.
 
 No hace falta `try/catch` en las rutas: Express 5 manda cualquier error al manejador central (`src/middlewares/errores.js`).
 
@@ -285,7 +296,7 @@ Sin sesión, las rutas protegidas mandan al login; un jugador que entra a `/admi
 
 - **Colores:** verde de cancha (`colorPalette="brand"`, el de todos los componentes por defecto) para las acciones, y naranja de pelota (`colorPalette="pelota"`) para lo que pide atención, como los lugares que faltan en un partido. El fondo queda neutro. Están definidos en `web/src/tema.js`.
 - **Tipografía:** Barlow Condensed para títulos y Barlow para el resto.
-- **Modo oscuro:** sigue al sistema y se puede cambiar con el botón de la luna; queda guardado.
+- **Modo oscuro:** sigue al sistema y se puede cambiar con el botón de la luna (el sol, en modo oscuro); queda guardado.
 - **Celular primero:** en pantallas chicas la navegación es una barra de pestañas abajo.
 
 Componentes que usa cada pantalla, con ejemplos en vivo en **http://localhost:5173/componentes**:
@@ -300,7 +311,7 @@ Componentes que usa cada pantalla, con ejemplos en vivo en **http://localhost:51
 | `avisar()` | `componentes/avisos.jsx` | Aviso corto después de una acción ("Reserva confirmada") |
 | `useCarga()` | `useCarga.js` | Pide los datos y devuelve `{ datos, cargando, error, recargar }` |
 
-Una pantalla típica:
+Una pantalla típica, simplificada:
 
 ```jsx
 export default function MisReservas() {
@@ -400,5 +411,5 @@ Comportamiento verificado:
 
 - Las credenciales de PostgreSQL (`turnito` / `turnito`) son valores de desarrollo.
 - Todos los turnos duran **una hora y empiezan en hora en punto**. Esa decisión permite generar la grilla de horarios a partir del horario de apertura y cierre del complejo, sin necesidad de una tabla de disponibilidad.
-- Los horarios se manejan en la zona `America/Argentina/Buenos_Aires`, configurada en el contenedor de PostgreSQL.
+- Los horarios se manejan en la zona `America/Argentina/Buenos_Aires`, configurada en los contenedores de PostgreSQL y de la API.
 - Proyecto desarrollado en el marco de la materia Metodología de Sistemas 2.

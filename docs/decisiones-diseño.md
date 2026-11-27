@@ -3,6 +3,8 @@
 Caso analizado: dónde viven las reglas de negocio de reservas y partidos.
 ¿En la base de datos o en la API?
 
+> Escrito para el Taller II (16/10/2026), cuando la API todavía no existía. Lo que se decidió acá se aplicó después: la API valida lo que depende del pedido y traduce los errores de la base. Cómo quedó, en [`arquitectura.md`](arquitectura.md).
+
 ## 1. Código analizado
 
 Todo el caso está en [`db/01-schema.sql`](../db/01-schema.sql). Es el único código del proyecto con lógica de negocio: la API todavía no existe. Los links a las líneas apuntan al commit `0199511`, el estado del esquema antes de este análisis.
